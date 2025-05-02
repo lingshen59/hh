@@ -97,13 +97,15 @@ flyBtn.Text = "Fly: OFF"
 flyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 flyBtn.TextSize = 18
 
--- Variables para el vuelo (MOVIDO AQUÍ ARRIBA)
+-- Variables para el vuelo
 local flying = false
 local flySpeed = 1
 local bodyVelocity = nil
 local bodyGyro = nil
+local jumpHeight = 10 -- Altura del salto en vuelo
+local canJump = true -- Variable para controlar si puede saltar
 
--- Función para activar/desactivar vuelo (MOVIDO AQUÍ ARRIBA)
+-- Función para activar/desactivar vuelo
 local function toggleFly()
     flying = not flying
     flyBtn.Text = flying and "Fly: ON" or "Fly: OFF"
@@ -112,6 +114,11 @@ local function toggleFly()
         -- Activar vuelo
         local char = player.Character
         if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+        
+        -- Desactivar gravedad
+        if char:FindFirstChild("Humanoid") then
+            char.Humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+        end
         
         -- Crear objetos de vuelo
         bodyVelocity = Instance.new("BodyVelocity", char.HumanoidRootPart)
@@ -124,6 +131,10 @@ local function toggleFly()
         
         -- Iniciar bucle de vuelo
         spawn(function()
+            local isJumping = false
+            local jumpStart = 0
+            local spacePressed = false
+            
             while flying and char and char:FindFirstChild("HumanoidRootPart") and bodyVelocity and bodyGyro do
                 local camera = workspace.CurrentCamera
                 local moveDir = Vector3.new(0, 0, 0)
@@ -141,11 +152,37 @@ local function toggleFly()
                 if UIS:IsKeyDown(Enum.KeyCode.D) then
                     moveDir = moveDir + camera.CFrame.RightVector
                 end
+                
+                -- Control de salto mejorado para múltiples saltos
                 if UIS:IsKeyDown(Enum.KeyCode.Space) then
-                    moveDir = moveDir + Vector3.new(0, 1, 0)
+                    if not spacePressed then
+                        spacePressed = true
+                        -- Iniciar un nuevo salto cada vez que se presiona espacio
+                        isJumping = true
+                        jumpStart = tick()
+                    end
+                    
+                    if isJumping then
+                        -- Calcular la fuerza del salto basado en el tiempo
+                        local jumpTime = tick() - jumpStart
+                        local jumpForce = math.min(jumpHeight, jumpHeight * (1 - jumpTime/0.5))
+                        
+                        if jumpForce > 0 then
+                            moveDir = moveDir + Vector3.new(0, jumpForce, 0)
+                        else
+                            isJumping = false
+                        end
+                    end
+                else
+                    spacePressed = false
+                    -- Permitir un nuevo salto cuando se suelta la tecla espacio
+                    if not isJumping then
+                        canJump = true
+                    end
                 end
+                
                 if UIS:IsKeyDown(Enum.KeyCode.LeftShift) then
-                    moveDir = moveDir - Vector3.new(0, 1, 0)
+                    moveDir = moveDir - Vector3.new(0, 5, 0)
                 end
                 
                 -- Normalizar y aplicar velocidad
@@ -166,6 +203,11 @@ local function toggleFly()
             if bodyGyro and bodyGyro.Parent then
                 bodyGyro:Destroy()
             end
+            
+            -- Restaurar estado normal
+            if char and char:FindFirstChild("Humanoid") then
+                char.Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+            end
         end)
     else
         -- Desactivar vuelo
@@ -176,6 +218,11 @@ local function toggleFly()
         if bodyGyro then
             bodyGyro:Destroy()
             bodyGyro = nil
+        end
+        
+        -- Restaurar estado normal
+        if player.Character and player.Character:FindFirstChild("Humanoid") then
+            player.Character.Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
         end
     end
 end
