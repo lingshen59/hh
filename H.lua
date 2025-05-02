@@ -88,6 +88,15 @@ spdBtn.Position = UDim2.new(0.05, 0, 0.6, 0)
 spdBtn.BackgroundColor3, spdBtn.Text = Color3.fromRGB(60, 60, 60), "Speed: Normal"
 spdBtn.TextColor3, spdBtn.TextSize = Color3.fromRGB(255, 255, 255), 18
 
+-- Añadir botón de vuelo
+local flyBtn = Instance.new("TextButton", main)
+flyBtn.Size = UDim2.new(0.4, 0, 0, 50)
+flyBtn.Position = UDim2.new(0.05, 0, 0.75, 0)
+flyBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+flyBtn.Text = "Fly: OFF"
+flyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+flyBtn.TextSize = 18
+
 -- Mejorar el botón minimizado para que sea más visible
 local minBtn = Instance.new("TextButton", gui)
 minBtn.Size = UDim2.new(0, 60, 0, 60)
@@ -216,20 +225,20 @@ local function teleport()
     end
 end
 
--- Función de velocidad mejorada con ciclo que incluye velocidad normal
+-- Función de velocidad mejorada con ciclo que incluye velocidad normal y del "it"
 local function toggleSpeed()
     -- Guardar la velocidad actual si es la primera vez
     if player.Character and player.Character:FindFirstChild("Humanoid") and speedMult == 1 then
         defaultWalkSpeed = player.Character.Humanoid.WalkSpeed
     end
     
-    -- Ciclo de velocidades: Normal -> x2 -> x4 -> Default
+    -- Ciclo de velocidades: Normal -> "It" (x1.2) -> x2 -> Normal
     if speedMult == 1 then
+        speedMult = 1.2
+        spdBtn.Text = "Speed: It"
+    elseif speedMult == 1.2 then
         speedMult = 2
         spdBtn.Text = "Speed: x2"
-    elseif speedMult == 2 then
-        speedMult = 4
-        spdBtn.Text = "Speed: x4"
     else
         speedMult = 1
         spdBtn.Text = "Speed: Normal"
@@ -248,6 +257,7 @@ end
 espBtn.MouseButton1Click:Connect(toggleESP)
 tpBtn.MouseButton1Click:Connect(teleport)
 spdBtn.MouseButton1Click:Connect(toggleSpeed)
+flyBtn.MouseButton1Click:Connect(toggleFly)
 
 -- Mejorar la funcionalidad de minimizar/expandir - ahora usando el título
 title.MouseButton1Click:Connect(function() 
@@ -266,6 +276,12 @@ close.MouseButton1Click:Connect(function()
     for _, obj in pairs(espObjs) do if obj and obj.Parent then obj:Destroy() end end
     for _, label in pairs(nameLabels) do if label and label.Parent then label:Destroy() end end
     
+    -- Desactivar vuelo al cerrar
+    if flying then
+        if bodyVelocity then bodyVelocity:Destroy() end
+        if bodyGyro then bodyGyro:Destroy() end
+    end
+    
     -- Restaurar velocidad original al cerrar
     if player.Character and player.Character:FindFirstChild("Humanoid") then
         player.Character.Humanoid.WalkSpeed = defaultWalkSpeed
@@ -275,6 +291,8 @@ end)
 -- Capturar la velocidad original al iniciar y aplicar velocidad cuando el personaje aparece
 player.CharacterAdded:Connect(function(char)
     local hum = char:WaitForChild("Humanoid")
+    -- Asegurarse de capturar la velocidad original sin modificaciones
+    wait(0.5) -- Esperar un momento para que el juego establezca la velocidad base
     defaultWalkSpeed = hum.WalkSpeed -- Guardar la velocidad predeterminada
     
     if speedMult == 1 then
@@ -360,6 +378,7 @@ end)
 
 -- Capturar la velocidad original al iniciar
 if player.Character and player.Character:FindFirstChild("Humanoid") then
+    wait(0.5) -- Esperar un momento para que el juego establezca la velocidad base
     defaultWalkSpeed = player.Character.Humanoid.WalkSpeed
 end
 
@@ -368,3 +387,86 @@ updatePlayerList()
 
 -- Setup touch controls
 setupTouchControls()
+
+-- Variables para el vuelo
+local flying = false
+local flySpeed = 1
+local bodyVelocity = nil
+local bodyGyro = nil
+
+-- Función para activar/desactivar vuelo
+local function toggleFly()
+    flying = not flying
+    flyBtn.Text = flying and "Fly: ON" or "Fly: OFF"
+    
+    if flying then
+        -- Activar vuelo
+        local char = player.Character
+        if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+        
+        -- Crear objetos de vuelo
+        bodyVelocity = Instance.new("BodyVelocity", char.HumanoidRootPart)
+        bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+        bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+        
+        bodyGyro = Instance.new("BodyGyro", char.HumanoidRootPart)
+        bodyGyro.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+        bodyGyro.CFrame = char.HumanoidRootPart.CFrame
+        
+        -- Iniciar bucle de vuelo
+        spawn(function()
+            while flying and char and char:FindFirstChild("HumanoidRootPart") and bodyVelocity and bodyGyro do
+                local camera = workspace.CurrentCamera
+                local moveDir = Vector3.new(0, 0, 0)
+                
+                -- Controles de vuelo
+                if UIS:IsKeyDown(Enum.KeyCode.W) then
+                    moveDir = moveDir + camera.CFrame.LookVector
+                end
+                if UIS:IsKeyDown(Enum.KeyCode.S) then
+                    moveDir = moveDir - camera.CFrame.LookVector
+                end
+                if UIS:IsKeyDown(Enum.KeyCode.A) then
+                    moveDir = moveDir - camera.CFrame.RightVector
+                end
+                if UIS:IsKeyDown(Enum.KeyCode.D) then
+                    moveDir = moveDir + camera.CFrame.RightVector
+                end
+                if UIS:IsKeyDown(Enum.KeyCode.Space) then
+                    moveDir = moveDir + Vector3.new(0, 1, 0)
+                end
+                if UIS:IsKeyDown(Enum.KeyCode.LeftShift) then
+                    moveDir = moveDir - Vector3.new(0, 1, 0)
+                end
+                
+                -- Normalizar y aplicar velocidad
+                if moveDir.Magnitude > 0 then
+                    moveDir = moveDir.Unit * (defaultWalkSpeed * 2 * flySpeed)
+                end
+                
+                bodyVelocity.Velocity = moveDir
+                bodyGyro.CFrame = CFrame.new(char.HumanoidRootPart.Position, char.HumanoidRootPart.Position + camera.CFrame.LookVector)
+                
+                wait()
+            end
+            
+            -- Limpiar si el bucle termina
+            if bodyVelocity and bodyVelocity.Parent then
+                bodyVelocity:Destroy()
+            end
+            if bodyGyro and bodyGyro.Parent then
+                bodyGyro:Destroy()
+            end
+        end)
+    else
+        -- Desactivar vuelo
+        if bodyVelocity then
+            bodyVelocity:Destroy()
+            bodyVelocity = nil
+        end
+        if bodyGyro then
+            bodyGyro:Destroy()
+            bodyGyro = nil
+        end
+    end
+end
