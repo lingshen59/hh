@@ -97,6 +97,89 @@ flyBtn.Text = "Fly: OFF"
 flyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 flyBtn.TextSize = 18
 
+-- Variables para el vuelo (MOVIDO AQUÍ ARRIBA)
+local flying = false
+local flySpeed = 1
+local bodyVelocity = nil
+local bodyGyro = nil
+
+-- Función para activar/desactivar vuelo (MOVIDO AQUÍ ARRIBA)
+local function toggleFly()
+    flying = not flying
+    flyBtn.Text = flying and "Fly: ON" or "Fly: OFF"
+    
+    if flying then
+        -- Activar vuelo
+        local char = player.Character
+        if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+        
+        -- Crear objetos de vuelo
+        bodyVelocity = Instance.new("BodyVelocity", char.HumanoidRootPart)
+        bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+        bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+        
+        bodyGyro = Instance.new("BodyGyro", char.HumanoidRootPart)
+        bodyGyro.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+        bodyGyro.CFrame = char.HumanoidRootPart.CFrame
+        
+        -- Iniciar bucle de vuelo
+        spawn(function()
+            while flying and char and char:FindFirstChild("HumanoidRootPart") and bodyVelocity and bodyGyro do
+                local camera = workspace.CurrentCamera
+                local moveDir = Vector3.new(0, 0, 0)
+                
+                -- Controles de vuelo
+                if UIS:IsKeyDown(Enum.KeyCode.W) then
+                    moveDir = moveDir + camera.CFrame.LookVector
+                end
+                if UIS:IsKeyDown(Enum.KeyCode.S) then
+                    moveDir = moveDir - camera.CFrame.LookVector
+                end
+                if UIS:IsKeyDown(Enum.KeyCode.A) then
+                    moveDir = moveDir - camera.CFrame.RightVector
+                end
+                if UIS:IsKeyDown(Enum.KeyCode.D) then
+                    moveDir = moveDir + camera.CFrame.RightVector
+                end
+                if UIS:IsKeyDown(Enum.KeyCode.Space) then
+                    moveDir = moveDir + Vector3.new(0, 1, 0)
+                end
+                if UIS:IsKeyDown(Enum.KeyCode.LeftShift) then
+                    moveDir = moveDir - Vector3.new(0, 1, 0)
+                end
+                
+                -- Normalizar y aplicar velocidad
+                if moveDir.Magnitude > 0 then
+                    moveDir = moveDir.Unit * (defaultWalkSpeed * 2 * flySpeed)
+                end
+                
+                bodyVelocity.Velocity = moveDir
+                bodyGyro.CFrame = CFrame.new(char.HumanoidRootPart.Position, char.HumanoidRootPart.Position + camera.CFrame.LookVector)
+                
+                wait()
+            end
+            
+            -- Limpiar si el bucle termina
+            if bodyVelocity and bodyVelocity.Parent then
+                bodyVelocity:Destroy()
+            end
+            if bodyGyro and bodyGyro.Parent then
+                bodyGyro:Destroy()
+            end
+        end)
+    else
+        -- Desactivar vuelo
+        if bodyVelocity then
+            bodyVelocity:Destroy()
+            bodyVelocity = nil
+        end
+        if bodyGyro then
+            bodyGyro:Destroy()
+            bodyGyro = nil
+        end
+    end
+end
+
 -- Mejorar el botón minimizado para que sea más visible
 local minBtn = Instance.new("TextButton", gui)
 minBtn.Size = UDim2.new(0, 60, 0, 60)
@@ -257,7 +340,7 @@ end
 espBtn.MouseButton1Click:Connect(toggleESP)
 tpBtn.MouseButton1Click:Connect(teleport)
 spdBtn.MouseButton1Click:Connect(toggleSpeed)
-flyBtn.MouseButton1Click:Connect(toggleFly)
+flyBtn.MouseButton1Click:Connect(toggleFly)  -- Ahora la función ya está definida
 
 -- Mejorar la funcionalidad de minimizar/expandir - ahora usando el título
 title.MouseButton1Click:Connect(function() 
@@ -387,86 +470,3 @@ updatePlayerList()
 
 -- Setup touch controls
 setupTouchControls()
-
--- Variables para el vuelo
-local flying = false
-local flySpeed = 1
-local bodyVelocity = nil
-local bodyGyro = nil
-
--- Función para activar/desactivar vuelo
-local function toggleFly()
-    flying = not flying
-    flyBtn.Text = flying and "Fly: ON" or "Fly: OFF"
-    
-    if flying then
-        -- Activar vuelo
-        local char = player.Character
-        if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-        
-        -- Crear objetos de vuelo
-        bodyVelocity = Instance.new("BodyVelocity", char.HumanoidRootPart)
-        bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-        bodyVelocity.Velocity = Vector3.new(0, 0, 0)
-        
-        bodyGyro = Instance.new("BodyGyro", char.HumanoidRootPart)
-        bodyGyro.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
-        bodyGyro.CFrame = char.HumanoidRootPart.CFrame
-        
-        -- Iniciar bucle de vuelo
-        spawn(function()
-            while flying and char and char:FindFirstChild("HumanoidRootPart") and bodyVelocity and bodyGyro do
-                local camera = workspace.CurrentCamera
-                local moveDir = Vector3.new(0, 0, 0)
-                
-                -- Controles de vuelo
-                if UIS:IsKeyDown(Enum.KeyCode.W) then
-                    moveDir = moveDir + camera.CFrame.LookVector
-                end
-                if UIS:IsKeyDown(Enum.KeyCode.S) then
-                    moveDir = moveDir - camera.CFrame.LookVector
-                end
-                if UIS:IsKeyDown(Enum.KeyCode.A) then
-                    moveDir = moveDir - camera.CFrame.RightVector
-                end
-                if UIS:IsKeyDown(Enum.KeyCode.D) then
-                    moveDir = moveDir + camera.CFrame.RightVector
-                end
-                if UIS:IsKeyDown(Enum.KeyCode.Space) then
-                    moveDir = moveDir + Vector3.new(0, 1, 0)
-                end
-                if UIS:IsKeyDown(Enum.KeyCode.LeftShift) then
-                    moveDir = moveDir - Vector3.new(0, 1, 0)
-                end
-                
-                -- Normalizar y aplicar velocidad
-                if moveDir.Magnitude > 0 then
-                    moveDir = moveDir.Unit * (defaultWalkSpeed * 2 * flySpeed)
-                end
-                
-                bodyVelocity.Velocity = moveDir
-                bodyGyro.CFrame = CFrame.new(char.HumanoidRootPart.Position, char.HumanoidRootPart.Position + camera.CFrame.LookVector)
-                
-                wait()
-            end
-            
-            -- Limpiar si el bucle termina
-            if bodyVelocity and bodyVelocity.Parent then
-                bodyVelocity:Destroy()
-            end
-            if bodyGyro and bodyGyro.Parent then
-                bodyGyro:Destroy()
-            end
-        end)
-    else
-        -- Desactivar vuelo
-        if bodyVelocity then
-            bodyVelocity:Destroy()
-            bodyVelocity = nil
-        end
-        if bodyGyro then
-            bodyGyro:Destroy()
-            bodyGyro = nil
-        end
-    end
-end
