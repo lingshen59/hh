@@ -3,87 +3,100 @@ local player = game.Players.LocalPlayer
 local UIS = game:GetService("UserInputService")
 local espEnabled, speedMult, espObjs = false, 1, {}
 local nameLabels = {}
+local defaultWalkSpeed = 16 -- Guardar la velocidad predeterminada
 
 -- Create GUI elements
 local gui = Instance.new("ScreenGui", game.CoreGui)
 gui.ResetOnSpawn = false
 
+-- Hacer el menú más grande (70% de la pantalla)
 local main = Instance.new("Frame", gui)
-main.Size, main.Position = UDim2.new(0, 200, 0, 250), UDim2.new(0.5, -100, 0.5, -125)
+main.Size = UDim2.new(0.7, 0, 0.7, 0)
+main.Position = UDim2.new(0.15, 0, 0.15, 0)
 main.BackgroundColor3, main.BorderSizePixel = Color3.fromRGB(30, 30, 30), 0
 main.Active, main.Draggable = true, true
 
-local title = Instance.new("TextLabel", main)
-title.Size, title.Position = UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, 0)
-title.BackgroundColor3, title.Text = Color3.fromRGB(50, 50, 50), "Hide and Seek"
-title.TextColor3, title.TextSize = Color3.fromRGB(255, 255, 255), 16
+local title = Instance.new("TextButton", main) -- Cambiar a TextButton para minimizar al hacer clic
+title.Size, title.Position = UDim2.new(1, 0, 0, 40), UDim2.new(0, 0, 0, 0)
+title.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+title.Text = "Hide and Seek"
+title.TextColor3, title.TextSize = Color3.fromRGB(255, 255, 255), 20
+title.Font = Enum.Font.SourceSansBold
 
-local mini = Instance.new("TextButton", title)
-mini.Size, mini.Position = UDim2.new(0, 25, 0, 25), UDim2.new(1, -50, 0, 0)
-mini.BackgroundTransparency, mini.Text = 1, "-"
-mini.TextColor3, mini.TextSize = Color3.fromRGB(255, 255, 255), 20
-
+-- Quitar el botón de minimizar ya que ahora se minimiza haciendo clic en el título
 local close = Instance.new("TextButton", title)
-close.Size, close.Position = UDim2.new(0, 25, 0, 25), UDim2.new(1, -25, 0, 0)
-close.BackgroundTransparency, close.Text = 1, "X"
-close.TextColor3, close.TextSize = Color3.fromRGB(255, 255, 255), 16
+close.Size, close.Position = UDim2.new(0, 40, 0, 40), UDim2.new(1, -40, 0, 0)
+close.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+close.Text = "X"
+close.TextColor3, close.TextSize = Color3.fromRGB(255, 255, 255), 20
 
+-- Resto de elementos GUI (ajustados para el nuevo tamaño)
 local espBtn = Instance.new("TextButton", main)
-espBtn.Size, espBtn.Position = UDim2.new(0.9, 0, 0, 30), UDim2.new(0.05, 0, 0, 35)
+espBtn.Size = UDim2.new(0.4, 0, 0, 50)
+espBtn.Position = UDim2.new(0.05, 0, 0.15, 0)
 espBtn.BackgroundColor3, espBtn.Text = Color3.fromRGB(60, 60, 60), "ESP: OFF"
-espBtn.TextColor3, espBtn.TextSize = Color3.fromRGB(255, 255, 255), 14
+espBtn.TextColor3, espBtn.TextSize = Color3.fromRGB(255, 255, 255), 18
 
 -- Player selection dropdown for teleport
 local playerDropdown = Instance.new("Frame", main)
-playerDropdown.Size, playerDropdown.Position = UDim2.new(0.9, 0, 0, 30), UDim2.new(0.05, 0, 0, 75)
+playerDropdown.Size = UDim2.new(0.4, 0, 0, 50)
+playerDropdown.Position = UDim2.new(0.55, 0, 0.15, 0)
 playerDropdown.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 playerDropdown.BorderSizePixel = 0
 playerDropdown.ClipsDescendants = true
 
 local selectedPlayer = Instance.new("TextLabel", playerDropdown)
-selectedPlayer.Size = UDim2.new(1, -30, 1, 0)
-selectedPlayer.Position = UDim2.new(0, 5, 0, 0)
+selectedPlayer.Size = UDim2.new(1, -50, 1, 0)
+selectedPlayer.Position = UDim2.new(0, 10, 0, 0)
 selectedPlayer.BackgroundTransparency = 1
 selectedPlayer.Text = "Select Player"
 selectedPlayer.TextColor3 = Color3.fromRGB(255, 255, 255)
-selectedPlayer.TextSize = 14
+selectedPlayer.TextSize = 18
 selectedPlayer.TextXAlignment = Enum.TextXAlignment.Left
 
 local dropdownBtn = Instance.new("TextButton", playerDropdown)
-dropdownBtn.Size = UDim2.new(0, 25, 0, 25)
-dropdownBtn.Position = UDim2.new(1, -25, 0, 2)
+dropdownBtn.Size = UDim2.new(0, 40, 0, 40)
+dropdownBtn.Position = UDim2.new(1, -45, 0, 5)
 dropdownBtn.BackgroundTransparency = 1
 dropdownBtn.Text = "▼"
 dropdownBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-dropdownBtn.TextSize = 14
+dropdownBtn.TextSize = 18
 
 local playerList = Instance.new("ScrollingFrame", main)
-playerList.Size = UDim2.new(0.9, 0, 0, 100)
-playerList.Position = UDim2.new(0.05, 0, 0, 110)
+playerList.Size = UDim2.new(0.4, 0, 0.3, 0)
+playerList.Position = UDim2.new(0.55, 0, 0.25, 0)
 playerList.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 playerList.BorderSizePixel = 0
-playerList.ScrollBarThickness = 4
+playerList.ScrollBarThickness = 6
 playerList.Visible = false
 playerList.CanvasSize = UDim2.new(0, 0, 0, 0)
 
 local UIListLayout = Instance.new("UIListLayout", playerList)
 UIListLayout.SortOrder = Enum.SortOrder.Name
-UIListLayout.Padding = UDim.new(0, 2)
+UIListLayout.Padding = UDim.new(0, 4)
 
 local tpBtn = Instance.new("TextButton", main)
-tpBtn.Size, tpBtn.Position = UDim2.new(0.9, 0, 0, 30), UDim2.new(0.05, 0, 0, 215)
+tpBtn.Size = UDim2.new(0.4, 0, 0, 50)
+tpBtn.Position = UDim2.new(0.55, 0, 0.6, 0)
 tpBtn.BackgroundColor3, tpBtn.Text = Color3.fromRGB(60, 60, 60), "Teleport"
-tpBtn.TextColor3, tpBtn.TextSize = Color3.fromRGB(255, 255, 255), 14
+tpBtn.TextColor3, tpBtn.TextSize = Color3.fromRGB(255, 255, 255), 18
 
+-- Modificar el botón de velocidad para incluir opción de reset
 local spdBtn = Instance.new("TextButton", main)
-spdBtn.Size, spdBtn.Position = UDim2.new(0.9, 0, 0, 30), UDim2.new(0.05, 0, 0, 175)
-spdBtn.BackgroundColor3, spdBtn.Text = Color3.fromRGB(60, 60, 60), "Speed: 1x"
-spdBtn.TextColor3, spdBtn.TextSize = Color3.fromRGB(255, 255, 255), 14
+spdBtn.Size = UDim2.new(0.4, 0, 0, 50)
+spdBtn.Position = UDim2.new(0.05, 0, 0.6, 0)
+spdBtn.BackgroundColor3, spdBtn.Text = Color3.fromRGB(60, 60, 60), "Speed: Normal"
+spdBtn.TextColor3, spdBtn.TextSize = Color3.fromRGB(255, 255, 255), 18
 
+-- Mejorar el botón minimizado para que sea más visible
 local minBtn = Instance.new("TextButton", gui)
-minBtn.Size, minBtn.Position = UDim2.new(0, 40, 0, 40), UDim2.new(0, 10, 0, 10)
-minBtn.BackgroundColor3, minBtn.Text = Color3.fromRGB(50, 50, 50), "+"
-minBtn.TextColor3, minBtn.TextSize = Color3.fromRGB(255, 255, 255), 20
+minBtn.Size = UDim2.new(0, 60, 0, 60)
+minBtn.Position = UDim2.new(0, 20, 0, 20)
+minBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+minBtn.BorderSizePixel = 2
+minBtn.BorderColor3 = Color3.fromRGB(255, 255, 255)
+minBtn.Text = "+"
+minBtn.TextColor3, minBtn.TextSize = Color3.fromRGB(255, 255, 255), 30
 minBtn.Visible, minBtn.Draggable = false, true
 
 -- Function to update player list
@@ -101,20 +114,21 @@ local function updatePlayerList()
     for _, p in pairs(game.Players:GetPlayers()) do
         if p ~= player then
             local btn = Instance.new("TextButton", playerList)
-            btn.Size = UDim2.new(1, -8, 0, 25)
+            btn.Size = UDim2.new(1, -12, 0, 40)
             btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
             btn.Text = p.Name
             btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-            btn.TextSize = 14
+            btn.TextSize = 18
             btn.BorderSizePixel = 0
             
             btn.MouseButton1Click:Connect(function()
                 selectedPlayer.Text = p.Name
                 selectedPlayerObject = p
                 playerList.Visible = false
+                dropdownBtn.Text = "▼"
             end)
             
-            ySize = ySize + 27
+            ySize = ySize + 44
         end
     end
     
@@ -202,12 +216,31 @@ local function teleport()
     end
 end
 
--- Speed function
+-- Función de velocidad mejorada con ciclo que incluye velocidad normal
 local function toggleSpeed()
-    speedMult = speedMult == 1 and 2 or (speedMult == 2 and 4 or 1)
-    spdBtn.Text = "Speed: " .. speedMult .. "x"
+    -- Guardar la velocidad actual si es la primera vez
+    if player.Character and player.Character:FindFirstChild("Humanoid") and speedMult == 1 then
+        defaultWalkSpeed = player.Character.Humanoid.WalkSpeed
+    end
+    
+    -- Ciclo de velocidades: Normal -> x2 -> x4 -> Default
+    if speedMult == 1 then
+        speedMult = 2
+        spdBtn.Text = "Speed: x2"
+    elseif speedMult == 2 then
+        speedMult = 4
+        spdBtn.Text = "Speed: x4"
+    else
+        speedMult = 1
+        spdBtn.Text = "Speed: Normal"
+    end
+    
     if player.Character and player.Character:FindFirstChild("Humanoid") then
-        player.Character.Humanoid.WalkSpeed = 16 * speedMult
+        if speedMult == 1 then
+            player.Character.Humanoid.WalkSpeed = defaultWalkSpeed
+        else
+            player.Character.Humanoid.WalkSpeed = defaultWalkSpeed * speedMult
+        end
     end
 end
 
@@ -216,8 +249,8 @@ espBtn.MouseButton1Click:Connect(toggleESP)
 tpBtn.MouseButton1Click:Connect(teleport)
 spdBtn.MouseButton1Click:Connect(toggleSpeed)
 
--- Minimize/expand
-mini.MouseButton1Click:Connect(function() 
+-- Mejorar la funcionalidad de minimizar/expandir - ahora usando el título
+title.MouseButton1Click:Connect(function() 
     main.Visible = false
     minBtn.Visible = true
     playerList.Visible = false
@@ -232,16 +265,84 @@ close.MouseButton1Click:Connect(function()
     gui:Destroy()
     for _, obj in pairs(espObjs) do if obj and obj.Parent then obj:Destroy() end end
     for _, label in pairs(nameLabels) do if label and label.Parent then label:Destroy() end end
+    
+    -- Restaurar velocidad original al cerrar
     if player.Character and player.Character:FindFirstChild("Humanoid") then
-        player.Character.Humanoid.WalkSpeed = 16
+        player.Character.Humanoid.WalkSpeed = defaultWalkSpeed
     end
 end)
 
--- Apply speed when character spawns
+-- Capturar la velocidad original al iniciar y aplicar velocidad cuando el personaje aparece
 player.CharacterAdded:Connect(function(char)
     local hum = char:WaitForChild("Humanoid")
-    hum.WalkSpeed = 16 * speedMult
+    defaultWalkSpeed = hum.WalkSpeed -- Guardar la velocidad predeterminada
+    
+    if speedMult == 1 then
+        hum.WalkSpeed = defaultWalkSpeed
+    else
+        hum.WalkSpeed = defaultWalkSpeed * speedMult
+    end
 end)
+
+-- Soporte para dispositivos táctiles
+local function setupTouchControls()
+    local touchStartPos = nil
+    local frameStartPos = nil
+    local isDragging = false
+    
+    main.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch then
+            touchStartPos = input.Position
+            frameStartPos = main.Position
+            isDragging = true
+        end
+    end)
+    
+    main.InputChanged:Connect(function(input)
+        if isDragging and input.UserInputType == Enum.UserInputType.Touch then
+            local delta = input.Position - touchStartPos
+            main.Position = UDim2.new(
+                frameStartPos.X.Scale, 
+                frameStartPos.X.Offset + delta.X,
+                frameStartPos.Y.Scale,
+                frameStartPos.Y.Offset + delta.Y
+            )
+        end
+    end)
+    
+    main.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch then
+            isDragging = false
+        end
+    end)
+    
+    -- También para el botón minimizado
+    minBtn.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch then
+            touchStartPos = input.Position
+            frameStartPos = minBtn.Position
+            isDragging = true
+        end
+    end)
+    
+    minBtn.InputChanged:Connect(function(input)
+        if isDragging and input.UserInputType == Enum.UserInputType.Touch then
+            local delta = input.Position - touchStartPos
+            minBtn.Position = UDim2.new(
+                frameStartPos.X.Scale, 
+                frameStartPos.X.Offset + delta.X,
+                frameStartPos.Y.Scale,
+                frameStartPos.Y.Offset + delta.Y
+            )
+        end
+    end)
+    
+    minBtn.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch then
+            isDragging = false
+        end
+    end)
+end
 
 -- Auto-refresh ESP and player list every 5 seconds
 spawn(function()
@@ -257,5 +358,13 @@ spawn(function()
     end
 end)
 
+-- Capturar la velocidad original al iniciar
+if player.Character and player.Character:FindFirstChild("Humanoid") then
+    defaultWalkSpeed = player.Character.Humanoid.WalkSpeed
+end
+
 -- Initial player list update
 updatePlayerList()
+
+-- Setup touch controls
+setupTouchControls()
