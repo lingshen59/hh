@@ -36,6 +36,11 @@ local Config = {
     AutoRandomFruit = false, -- Auto girar fruta aleatoria
     AutoCollectFruit = false, -- Auto recoger frutas que aparecen en el mar
     ShowFruitDistance = true, -- Mostrar distancia a la fruta más cercana
+    AutoAcceptLevelQuest = true, -- Auto aceptar misiones según nivel
+    FarmHeight = 25, -- Altura para flotar sobre el NPC (aumentada)
+    FastAttack = true, -- Ataque rápido
+    AttackSpeed = 0.1, -- Velocidad de ataque (segundos entre ataques)
+    LastAttackTime = 0, -- Último tiempo de ataque
 }
 
 -- Crear las pestañas principales
@@ -72,155 +77,6 @@ local function GetNearestMob()
     end
     
     return Target
-end
-
--- Función para moverse hacia el NPC
-local function TweenToPosition(targetPosition, speed)
-    local Distance = (HumanoidRootPart.Position - targetPosition).Magnitude
-    local Time = Distance / speed
-    
-    local Tween = TweenService:Create(
-        HumanoidRootPart,
-        TweenInfo.new(Time, Enum.EasingStyle.Linear),
-        {CFrame = CFrame.new(targetPosition)}
-    )
-    
-    Tween:Play()
-    return Tween
-end
-
--- Función para expandir el hitbox del NPC
-local function ExpandHitbox(npc, size)
-    if npc and npc:FindFirstChild("HumanoidRootPart") then
-        npc.HumanoidRootPart.Size = Vector3.new(size, size, size)
-        npc.HumanoidRootPart.Transparency = 0.8
-        npc.HumanoidRootPart.CanCollide = false
-    end
-end
-
--- Función para atacar
-local function Attack()
-    VirtualUser:CaptureController()
-    VirtualUser:ClickButton1(Vector2.new(0, 0))
-end
-
--- Función para obtener la información de la misión actual
-local function GetQuestInfo()
-    local QuestTitle = ""
-    local QuestMob = ""
-    
-    -- Buscar el título de la misión en la interfaz del juego
-    for _, v in pairs(LocalPlayer.PlayerGui:GetDescendants()) do
-        if v.Name == "QuestTitle" and v:IsA("TextLabel") then
-            QuestTitle = v.Text
-            break
-        end
-    end
-    
-    -- Extraer el nombre del NPC de la misión
-    if QuestTitle ~= "" then
-        -- Ejemplo: "Defeat 5 Bandits" -> "Bandits"
-        local mobName = QuestTitle:match("Defeat %d+ (.+)")
-        if mobName then
-            QuestMob = mobName
-        end
-    end
-    
-    return QuestTitle, QuestMob
-end
-
--- Función para encontrar el NPC de la misión actual
-local function GetQuestMob()
-    local QuestTitle, QuestMob = GetQuestInfo()
-    Config.CurrentQuest = QuestTitle
-    Config.QuestMobName = QuestMob
-    
-    if QuestMob == "" then
-        return GetNearestMob() -- Si no hay misión, atacar al más cercano
-    end
-    
-    local TargetDistance = math.huge
-    local Target = nil
-    
-    for _, v in pairs(workspace.Enemies:GetChildren()) do
-        if v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") and v.Humanoid.Health > 0 then
-            -- Verificar si el nombre del NPC coincide con el de la misión
-            if v.Name:find(QuestMob) then
-                local Distance = (HumanoidRootPart.Position - v.HumanoidRootPart.Position).Magnitude
-                if Distance < TargetDistance then
-                    TargetDistance = Distance
-                    Target = v
-                end
-            end
-        end
-    end
-    
-    -- Si no se encuentra el NPC de la misión, buscar el más cercano
-    if not Target then
-        return GetNearestMob()
-    end
-    
-    return Target
-end
-
--- Función para encontrar el NPC más cercano (como respaldo)
-local function GetNearestMob()
-    local TargetDistance = math.huge
-    local Target = nil
-    
-    for _, v in pairs(workspace.Enemies:GetChildren()) do
-        if v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") and v.Humanoid.Health > 0 then
-            local Distance = (HumanoidRootPart.Position - v.HumanoidRootPart.Position).Magnitude
-            if Distance < TargetDistance then
-                TargetDistance = Distance
-                Target = v
-            end
-        end
-    end
-    
-    return Target
-end
-
--- Función para encontrar el NPC que da la misión
-local function FindQuestNPC()
-    local NPCs = workspace:FindFirstChild("NPCs")
-    if not NPCs then return nil end
-    
-    for _, v in pairs(NPCs:GetChildren()) do
-        if v:FindFirstChild("HumanoidRootPart") and v:FindFirstChild("QuestBBG") then
-            return v
-        end
-    end
-    
-    return nil
-end
-
--- Función para aceptar una misión
-local function AcceptQuest()
-    local QuestNPC = FindQuestNPC()
-    if not QuestNPC then return false end
-    
-    -- Moverse hacia el NPC de la misión
-    local TargetPosition = QuestNPC.HumanoidRootPart.Position + Vector3.new(0, 2, 0)
-    local Tween = TweenToPosition(TargetPosition, Config.FarmSpeed)
-    Tween.Completed:Wait()
-    
-    -- Interactuar con el NPC para aceptar la misión
-    local args = {
-        [1] = "StartQuest",
-        [2] = QuestNPC.Name, -- Nombre del NPC
-        [3] = 1 -- Nivel de la misión (normalmente 1)
-    }
-    
-    -- Intentar llamar al evento remoto para aceptar la misión
-    local questEvent = ReplicatedStorage:FindFirstChild("Remotes"):FindFirstChild("CommF_")
-    if questEvent then
-        questEvent:InvokeServer(unpack(args))
-        wait(1)
-        return true
-    end
-    
-    return false
 end
 
 -- Función para moverse hacia el NPC
@@ -529,13 +385,9 @@ local function AutoFarm()
     if not Config.AutoFarm then return end
     
     -- Si está activado el auto-quest, verificar si tenemos una misión activa
-    if Config.AutoTakeQuest then
-        local QuestTitle, _ = GetQuestInfo()
-        if QuestTitle == "" then
-            -- No tenemos misión, intentar aceptar una
-            AcceptQuest()
-            wait(1) -- Esperar a que se actualice la interfaz
-        end
+    if Config.AutoAcceptLevelQuest then
+        AcceptLevelQuest()
+        wait(0.5) -- Esperar a que se actualice la interfaz
     end
     
     -- Obtener el NPC objetivo según la misión actual
@@ -544,8 +396,8 @@ local function AutoFarm()
         -- Expandir hitbox para poder golpear desde lejos
         ExpandHitbox(Target, Config.HitboxExpander)
         
-        -- Posición sobre el NPC
-        local TargetPosition = Target.HumanoidRootPart.Position + Vector3.new(0, Config.FarmDistance, 0)
+        -- Posición sobre el NPC (altura aumentada)
+        local TargetPosition = Target.HumanoidRootPart.Position + Vector3.new(0, Config.FarmHeight, 0)
         
         -- Moverse hacia la posición
         local Tween = TweenToPosition(TargetPosition, Config.FarmSpeed)
@@ -559,7 +411,11 @@ local function AutoFarm()
         -- Atacar si estamos lo suficientemente cerca
         local Distance = (HumanoidRootPart.Position - Target.HumanoidRootPart.Position).Magnitude
         if Distance <= Config.AttackDistance then
-            Attack()
+            if Config.FastAttack then
+                FastAttack()
+            else
+                Attack()
+            end
         end
     end
 end
@@ -574,8 +430,8 @@ local function AutoFarmBoss()
         -- Expandir hitbox para poder golpear desde lejos
         ExpandHitbox(Boss, Config.HitboxExpander * 2) -- Hitbox más grande para jefes
         
-        -- Posición sobre el jefe
-        local TargetPosition = Boss.HumanoidRootPart.Position + Vector3.new(0, Config.FarmDistance, 0)
+        -- Posición sobre el jefe (altura aumentada)
+        local TargetPosition = Boss.HumanoidRootPart.Position + Vector3.new(0, Config.FarmHeight, 0)
         
         -- Moverse hacia la posición
         local Tween = TweenToPosition(TargetPosition, Config.FarmSpeed)
@@ -589,16 +445,440 @@ local function AutoFarmBoss()
         -- Atacar si estamos lo suficientemente cerca
         local Distance = (HumanoidRootPart.Position - Boss.HumanoidRootPart.Position).Magnitude
         if Distance <= Config.AttackDistance * 1.5 then -- Mayor distancia para jefes
-            Attack()
+            if Config.FastAttack then
+                FastAttack()
+            else
+                Attack()
+            end
         end
     end
 end
+
+-- Sección de Farm Config
+local FarmConfigSection = FarmConfig:NewSection("FARM CONFIG")
+
+-- Slider para ajustar la altura del farm
+FarmConfigSection:NewSlider("Farm Height", "Ajusta la altura sobre el NPC", 50, 10, function(value)
+    Config.FarmHeight = value
+    print("Altura de farm ajustada a: " .. value)
+end)
+
+-- Toggle para Auto Accept Level Quest
+FarmConfigSection:NewToggle("Auto Accept Level Quest", "Auto acepta misiones según tu nivel", function(state)
+    Config.AutoAcceptLevelQuest = state
+    
+    if state then
+        print("Auto Accept Level Quest Activado")
+    else
+        print("Auto Accept Level Quest Desactivado")
+    end
+end)
+
+-- Toggle para Fast Attack
+FarmConfigSection:NewToggle("Fast Attack", "Ataca más rápido de lo normal", function(state)
+    Config.FastAttack = state
+    
+    if state then
+        print("Fast Attack Activado")
+    else
+        print("Fast Attack Desactivado")
+    end
+end)
+
+-- Slider para ajustar la velocidad de ataque
+FarmConfigSection:NewSlider("Attack Speed", "Ajusta la velocidad de ataque (segundos)", 0.5, 0.05, function(value)
+    Config.AttackSpeed = value
+    print("Velocidad de ataque ajustada a: " .. value .. " segundos")
+end)
 
 -- Checkbox para Auto Farm Level
 AutoFarmLevelSection:NewToggle("Auto farm your current level quests", "Auto farmea las misiones de tu nivel actual", function(state)
     Config.AutoFarm = state
     Config.AutoFarmLevel = state
-    Config.AutoTakeQuest = state -- Activar también el auto-quest
+    Config.AutoAcceptLevelQuest = state -- Activar también el auto-quest por nivel
+    
+    if state then
+        print("Auto Farm Level Activado")
+        
+        -- Iniciar el bucle de auto farm
+        spawn(function()
+            while Config.AutoFarm do
+                AutoFarm()
+                wait(0.1)
+            end
+        end)
+    else
+        print("Auto Farm Level Desactivado")
+    end
+end)
+
+-- Toggle para Auto Farm Level
+AutoFarmLevelSection:NewToggle("AUTO FARM LEVEL", "Activa/Desactiva el auto farm de nivel", function(state)
+    Config.AutoFarmLevel = state
+    
+    if state then
+        print("Auto Farm Level Principal Activado")
+        -- Lógica específica para el auto farm de nivel
+    else
+        print("Auto Farm Level Principal Desactivado")
+    end
+end)
+
+-- Toggle para Auto Farm Level (segundo)
+AutoFarmLevelSection:NewToggle("Auto Farm Level", "Activa/Desactiva el auto farm de nivel", function(state)
+    Config.AutoFarmLevel = state
+    
+    if state then
+        print("Auto Farm Level Secundario Activado")
+    else
+        print("Auto Farm Level Secundario Desactivado")
+    end
+end)
+
+-- Dropdown para Select Method Farm
+AutoFarmLevelSection:NewDropdown("Select Method Farm", "Selecciona el método de farmeo", {"Single Quest", "Multiple Quests"}, function(selected)
+    Config.FarmMethod = selected
+    print("Método seleccionado: " .. selected)
+end)
+
+-- Toggle para Farm Level Take Quest
+AutoFarmLevelSection:NewToggle("Farm Level Take Quest", "Toma automáticamente las misiones", function(state)
+    Config.AutoTakeQuest = state
+    
+    if state then
+        print("Auto Take Quest Activado")
+        
+        -- Iniciar bucle para tomar misiones
+        spawn(function()
+            while Config.AutoTakeQuest do
+                local QuestTitle, _ = GetQuestInfo()
+                if QuestTitle == "" then
+                    -- No tenemos misión, intentar aceptar una
+                    AcceptQuest()
+                end
+                wait(5) -- Comprobar cada 5 segundos si necesitamos una nueva misión
+            end
+        end)
+    else
+        print("Auto Take Quest Desactivado")
+    end
+end)
+
+-- Dropdown para Select Weapon
+AutoFarmLevelSection:NewDropdown("Select Weapon", "Selecciona el arma para farmear", {"Melee", "Sword", "Gun", "Fruit"}, function(selected)
+    Config.SelectedWeapon = selected
+    print("Arma seleccionada: " .. selected)
+    
+    -- Equipar el arma seleccionada
+    spawn(function()
+        -- Aquí iría la lógica para equipar el arma seleccionada
+        -- Por ejemplo, buscar en el inventario y equipar
+    end)
+end)
+
+-- Sección de Auto Farm Quest
+local AutoFarmQuestSection = NormalFarm:NewSection("=============AUTO FARM QUEST=============")
+
+-- Checkbox para Auto Farm Selected Quest
+AutoFarmQuestSection:NewToggle("Auto farm selected quest", "Auto farmea la misión seleccionada", function(state)
+    Config.AutoFarmQuest = state
+    
+    if state then
+        print("Auto Farm Quest Activado")
+        
+        -- Iniciar bucle para farmear misiones específicas
+        spawn(function()
+            while Config.AutoFarmQuest do
+                AutoFarm()
+                wait(0.1)
+            end
+        end)
+    else
+        print("Auto Farm Quest Desactivado")
+    end
+end)
+
+-- Función para manejar la reconexión del personaje
+LocalPlayer.CharacterAdded:Connect(function(NewCharacter)
+    Character = NewCharacter
+    Humanoid = Character:WaitForChild("Humanoid")
+    HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+    
+    -- Reiniciar el auto farm si estaba activado
+    if Config.AutoFarm then
+        wait(1)
+        spawn(function()
+            while Config.AutoFarm do
+                AutoFarm()
+                wait(0.1)
+            end
+        end)
+    end
+end)
+
+-- Anti-AFK
+local VirtualUser = game:GetService("VirtualUser")
+LocalPlayer.Idled:Connect(function()
+    VirtualUser:CaptureController()
+    VirtualUser:ClickButton2(Vector2.new(0, 0))
+    wait(1)
+end)
+
+-- Función principal para iniciar el script
+local function StartScript()
+    print("Script de Blox Fruit iniciado correctamente")
+    
+    -- Comprobar si estamos en el juego correcto
+    if game.PlaceId ~= 2753915549 and game.PlaceId ~= 4442272183 and game.PlaceId ~= 7449423635 then
+        warn("Este script está diseñado para Blox Fruit. Por favor, ejecuta el script en el juego correcto.")
+        return
+    end
+    
+    -- Inicializar el script
+    print("Script inicializado correctamente. ¡Disfruta del auto farm!")
+end
+
+-- Iniciar el script
+StartScript()
+
+-- Función para obtener la misión adecuada para el nivel actual
+local function GetQuestForLevel()
+    local playerLevel = LocalPlayer.Data.Level.Value
+    local questData = {}
+    
+    -- Tabla de misiones por nivel (ajustar según el juego)
+    if playerLevel >= 1 and playerLevel < 10 then
+        questData = {NPC = "Bandit Quest Giver", Quest = "BanditQuest1", Level = 1}
+    elseif playerLevel >= 10 and playerLevel < 15 then
+        questData = {NPC = "Monkey Quest Giver", Quest = "MonkeyQuest1", Level = 1}
+    elseif playerLevel >= 15 and playerLevel < 30 then
+        questData = {NPC = "Gorilla Quest Giver", Quest = "GorillaQuest1", Level = 1}
+    elseif playerLevel >= 30 and playerLevel < 40 then
+        questData = {NPC = "Buggy Quest Giver", Quest = "BuggyQuest1", Level = 1}
+    elseif playerLevel >= 40 and playerLevel < 60 then
+        questData = {NPC = "Captain Quest Giver", Quest = "CaptainQuest1", Level = 1}
+    elseif playerLevel >= 60 and playerLevel < 75 then
+        questData = {NPC = "Desert Bandit Quest Giver", Quest = "DesertBanditQuest1", Level = 1}
+    elseif playerLevel >= 75 and playerLevel < 90 then
+        questData = {NPC = "Snow Bandit Quest Giver", Quest = "SnowBanditQuest1", Level = 1}
+    elseif playerLevel >= 90 and playerLevel < 100 then
+        questData = {NPC = "Snow Quest Giver", Quest = "SnowQuest1", Level = 1}
+    elseif playerLevel >= 100 and playerLevel < 120 then
+        questData = {NPC = "Marine Quest Giver", Quest = "MarineQuest2", Level = 1}
+    elseif playerLevel >= 120 and playerLevel < 150 then
+        questData = {NPC = "Marine Quest Giver", Quest = "MarineQuest3", Level = 1}
+    elseif playerLevel >= 150 and playerLevel < 175 then
+        questData = {NPC = "Sky Bandit Quest Giver", Quest = "SkyBanditQuest1", Level = 1}
+    elseif playerLevel >= 175 and playerLevel < 190 then
+        questData = {NPC = "Prison Quest Giver", Quest = "PrisonQuest", Level = 1}
+    elseif playerLevel >= 190 and playerLevel < 250 then
+        questData = {NPC = "Colosseum Quest Giver", Quest = "ColosseumQuest", Level = 1}
+    elseif playerLevel >= 250 and playerLevel < 300 then
+        questData = {NPC = "Magma Quest Giver", Quest = "MagmaQuest", Level = 1}
+    elseif playerLevel >= 300 and playerLevel < 350 then
+        questData = {NPC = "Fishman Quest Giver", Quest = "FishmanQuest", Level = 1}
+    elseif playerLevel >= 350 and playerLevel < 375 then
+        questData = {NPC = "Soldier Quest Giver", Quest = "SoldierQuest", Level = 1}
+    elseif playerLevel >= 375 and playerLevel < 400 then
+        questData = {NPC = "Zombie Quest Giver", Quest = "ZombieQuest", Level = 1}
+    elseif playerLevel >= 400 and playerLevel < 450 then
+        questData = {NPC = "Zombie Quest Giver", Quest = "ZombieQuest", Level = 2}
+    elseif playerLevel >= 450 and playerLevel < 475 then
+        questData = {NPC = "Shanda Quest Giver", Quest = "ShandaQuest", Level = 1}
+    elseif playerLevel >= 475 and playerLevel < 525 then
+        questData = {NPC = "Galley Quest Giver", Quest = "GalleyQuest", Level = 1}
+    elseif playerLevel >= 525 and playerLevel < 550 then
+        questData = {NPC = "Galley Quest Giver", Quest = "GalleyQuest", Level = 2}
+    elseif playerLevel >= 550 and playerLevel < 625 then
+        questData = {NPC = "Fountain Quest Giver", Quest = "FountainQuest", Level = 1}
+    else
+        -- Para niveles más altos, ajustar según el juego
+        questData = {NPC = "Fountain Quest Giver", Quest = "FountainQuest", Level = 1}
+    end
+    
+    return questData
+end
+
+-- Función mejorada para aceptar misiones según el nivel
+local function AcceptLevelQuest()
+    if not Config.AutoAcceptLevelQuest then return false end
+    
+    -- Verificar si ya tenemos una misión activa
+    local QuestTitle, _ = GetQuestInfo()
+    if QuestTitle ~= "" then return true end
+    
+    -- Obtener la misión adecuada para nuestro nivel
+    local questData = GetQuestForLevel()
+    
+    -- Buscar el NPC que da la misión
+    local NPCs = workspace:FindFirstChild("NPCs")
+    if not NPCs then return false end
+    
+    for _, v in pairs(NPCs:GetChildren()) do
+        if v.Name == questData.NPC then
+            -- Moverse hacia el NPC de la misión
+            local TargetPosition = v.HumanoidRootPart.Position + Vector3.new(0, 2, 0)
+            local Tween = TweenToPosition(TargetPosition, Config.FarmSpeed)
+            Tween.Completed:Wait()
+            
+            -- Interactuar con el NPC para aceptar la misión
+            local args = {
+                [1] = "StartQuest",
+                [2] = questData.Quest,
+                [3] = questData.Level
+            }
+            
+            -- Intentar llamar al evento remoto para aceptar la misión
+            local questEvent = ReplicatedStorage:FindFirstChild("Remotes"):FindFirstChild("CommF_")
+            if questEvent then
+                questEvent:InvokeServer(unpack(args))
+                wait(1)
+                print("Misión aceptada para nivel " .. LocalPlayer.Data.Level.Value)
+                return true
+            end
+        end
+    end
+    
+    return false
+end
+
+-- Función para ataque rápido
+local function FastAttack()
+    if not Config.FastAttack then return end
+    
+    local currentTime = tick()
+    if currentTime - Config.LastAttackTime >= Config.AttackSpeed then
+        Config.LastAttackTime = currentTime
+        
+        -- Realizar ataque
+        VirtualUser:CaptureController()
+        VirtualUser:ClickButton1(Vector2.new(0, 0))
+        
+        -- Simular ataques adicionales para mayor velocidad
+        spawn(function()
+            wait(Config.AttackSpeed / 2)
+            VirtualUser:CaptureController()
+            VirtualUser:ClickButton1(Vector2.new(0, 0))
+        end)
+    end
+end
+
+-- Función principal de auto farm mejorada
+local function AutoFarm()
+    if not Config.AutoFarm then return end
+    
+    -- Si está activado el auto-quest, verificar si tenemos una misión activa
+    if Config.AutoAcceptLevelQuest then
+        AcceptLevelQuest()
+        wait(0.5) -- Esperar a que se actualice la interfaz
+    end
+    
+    -- Obtener el NPC objetivo según la misión actual
+    local Target = GetQuestMob()
+    if Target then
+        -- Expandir hitbox para poder golpear desde lejos
+        ExpandHitbox(Target, Config.HitboxExpander)
+        
+        -- Posición sobre el NPC (altura aumentada)
+        local TargetPosition = Target.HumanoidRootPart.Position + Vector3.new(0, Config.FarmHeight, 0)
+        
+        -- Moverse hacia la posición
+        local Tween = TweenToPosition(TargetPosition, Config.FarmSpeed)
+        
+        -- Esperar a que termine el movimiento
+        Tween.Completed:Wait()
+        
+        -- Mirar hacia el NPC
+        HumanoidRootPart.CFrame = CFrame.new(HumanoidRootPart.Position, Vector3.new(Target.HumanoidRootPart.Position.X, HumanoidRootPart.Position.Y, Target.HumanoidRootPart.Position.Z))
+        
+        -- Atacar si estamos lo suficientemente cerca
+        local Distance = (HumanoidRootPart.Position - Target.HumanoidRootPart.Position).Magnitude
+        if Distance <= Config.AttackDistance then
+            if Config.FastAttack then
+                FastAttack()
+            else
+                Attack()
+            end
+        end
+    end
+end
+
+-- Función de auto farm para jefes mejorada
+local function AutoFarmBoss()
+    if not Config.AutoFarmBoss then return end
+    
+    -- Obtener el jefe más cercano
+    local Boss = GetNearestBoss()
+    if Boss then
+        -- Expandir hitbox para poder golpear desde lejos
+        ExpandHitbox(Boss, Config.HitboxExpander * 2) -- Hitbox más grande para jefes
+        
+        -- Posición sobre el jefe (altura aumentada)
+        local TargetPosition = Boss.HumanoidRootPart.Position + Vector3.new(0, Config.FarmHeight, 0)
+        
+        -- Moverse hacia la posición
+        local Tween = TweenToPosition(TargetPosition, Config.FarmSpeed)
+        
+        -- Esperar a que termine el movimiento
+        Tween.Completed:Wait()
+        
+        -- Mirar hacia el jefe
+        HumanoidRootPart.CFrame = CFrame.new(HumanoidRootPart.Position, Vector3.new(Boss.HumanoidRootPart.Position.X, HumanoidRootPart.Position.Y, Boss.HumanoidRootPart.Position.Z))
+        
+        -- Atacar si estamos lo suficientemente cerca
+        local Distance = (HumanoidRootPart.Position - Boss.HumanoidRootPart.Position).Magnitude
+        if Distance <= Config.AttackDistance * 1.5 then -- Mayor distancia para jefes
+            if Config.FastAttack then
+                FastAttack()
+            else
+                Attack()
+            end
+        end
+    end
+end
+
+-- Sección de Farm Config
+local FarmConfigSection = FarmConfig:NewSection("FARM CONFIG")
+
+-- Slider para ajustar la altura del farm
+FarmConfigSection:NewSlider("Farm Height", "Ajusta la altura sobre el NPC", 50, 10, function(value)
+    Config.FarmHeight = value
+    print("Altura de farm ajustada a: " .. value)
+end)
+
+-- Toggle para Auto Accept Level Quest
+FarmConfigSection:NewToggle("Auto Accept Level Quest", "Auto acepta misiones según tu nivel", function(state)
+    Config.AutoAcceptLevelQuest = state
+    
+    if state then
+        print("Auto Accept Level Quest Activado")
+    else
+        print("Auto Accept Level Quest Desactivado")
+    end
+end)
+
+-- Toggle para Fast Attack
+FarmConfigSection:NewToggle("Fast Attack", "Ataca más rápido de lo normal", function(state)
+    Config.FastAttack = state
+    
+    if state then
+        print("Fast Attack Activado")
+    else
+        print("Fast Attack Desactivado")
+    end
+end)
+
+-- Slider para ajustar la velocidad de ataque
+FarmConfigSection:NewSlider("Attack Speed", "Ajusta la velocidad de ataque (segundos)", 0.5, 0.05, function(value)
+    Config.AttackSpeed = value
+    print("Velocidad de ataque ajustada a: " .. value .. " segundos")
+end)
+
+-- Checkbox para Auto Farm Level
+AutoFarmLevelSection:NewToggle("Auto farm your current level quests", "Auto farmea las misiones de tu nivel actual", function(state)
+    Config.AutoFarm = state
+    Config.AutoFarmLevel = state
+    Config.AutoAcceptLevelQuest = state -- Activar también el auto-quest por nivel
     
     if state then
         print("Auto Farm Level Activado")
