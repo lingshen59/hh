@@ -1,5 +1,4 @@
 -- Blox Fruit Auto Farm Script
--- Based on HoHo Hub interface
 
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
 local Window = Library.CreateLib("Blox Fruit", "Ocean")
