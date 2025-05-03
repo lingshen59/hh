@@ -1,4 +1,5 @@
 -- Blox Fruit Auto Farm Script
+-- Based on HoHo Hub interface
 
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
 local Window = Library.CreateLib("Blox Fruit", "Ocean")
@@ -106,6 +107,27 @@ end
 local function Attack()
     VirtualUser:CaptureController()
     VirtualUser:ClickButton1(Vector2.new(0, 0))
+end
+
+-- Función para ataque rápido
+local function FastAttack()
+    if not Config.FastAttack then return end
+    
+    local currentTime = tick()
+    if currentTime - Config.LastAttackTime >= Config.AttackSpeed then
+        Config.LastAttackTime = currentTime
+        
+        -- Realizar ataque
+        VirtualUser:CaptureController()
+        VirtualUser:ClickButton1(Vector2.new(0, 0))
+        
+        -- Simular ataques adicionales para mayor velocidad
+        spawn(function()
+            wait(Config.AttackSpeed / 2)
+            VirtualUser:CaptureController()
+            VirtualUser:ClickButton1(Vector2.new(0, 0))
+        end)
+    end
 end
 
 -- Función para encontrar el jefe más cercano
@@ -597,6 +619,50 @@ AutoFarmQuestSection:NewToggle("Auto farm selected quest", "Auto farmea la misi�
     end
 end)
 
+-- Simplificar la interfaz de usuario para tener un solo botón de Auto Farm
+local AutoFarmSection = NormalFarm:NewSection("AUTO FARM SIMPLIFICADO")
+
+-- Toggle para Auto Farm Simplificado
+AutoFarmSection:NewToggle("Auto Farm (Todo en Uno)", "Activa el auto farm completo con todas las funciones", function(state)
+    Config.AutoFarm = state
+    Config.AutoFarmLevel = state
+    Config.AutoTakeQuest = state
+    Config.AutoAcceptLevelQuest = state
+    Config.FastAttack = state
+    
+    if state then
+        print("Auto Farm Completo Activado")
+        
+        -- Iniciar el bucle de auto farm
+        spawn(function()
+            while Config.AutoFarm do
+                AutoFarm()
+                wait(0.1)
+            end
+        end)
+    else
+        print("Auto Farm Completo Desactivado")
+    end
+end)
+
+-- Slider para ajustar la altura del farm
+AutoFarmSection:NewSlider("Altura de Farm", "Ajusta la altura sobre el NPC", 50, 10, function(value)
+    Config.FarmHeight = value
+    print("Altura de farm ajustada a: " .. value)
+end)
+
+-- Slider para ajustar la velocidad de ataque
+AutoFarmSection:NewSlider("Velocidad de Ataque", "Ajusta la velocidad de ataque (segundos)", 0.5, 0.05, function(value)
+    Config.AttackSpeed = value
+    print("Velocidad de ataque ajustada a: " .. value .. " segundos")
+end)
+
+-- Dropdown para seleccionar el arma
+AutoFarmSection:NewDropdown("Seleccionar Arma", "Selecciona el arma para farm", {"Melee", "Sword", "Gun", "Fruit"}, function(selected)
+    Config.SelectedWeapon = selected
+    print("Arma seleccionada: " .. selected)
+end)
+
 -- Función para manejar la reconexión del personaje
 LocalPlayer.CharacterAdded:Connect(function(NewCharacter)
     Character = NewCharacter
@@ -978,6 +1044,50 @@ AutoFarmQuestSection:NewToggle("Auto farm selected quest", "Auto farmea la misi�
     else
         print("Auto Farm Quest Desactivado")
     end
+end)
+
+-- Simplificar la interfaz de usuario para tener un solo botón de Auto Farm
+local AutoFarmSection = NormalFarm:NewSection("AUTO FARM SIMPLIFICADO")
+
+-- Toggle para Auto Farm Simplificado
+AutoFarmSection:NewToggle("Auto Farm (Todo en Uno)", "Activa el auto farm completo con todas las funciones", function(state)
+    Config.AutoFarm = state
+    Config.AutoFarmLevel = state
+    Config.AutoTakeQuest = state
+    Config.AutoAcceptLevelQuest = state
+    Config.FastAttack = state
+    
+    if state then
+        print("Auto Farm Completo Activado")
+        
+        -- Iniciar el bucle de auto farm
+        spawn(function()
+            while Config.AutoFarm do
+                AutoFarm()
+                wait(0.1)
+            end
+        end)
+    else
+        print("Auto Farm Completo Desactivado")
+    end
+end)
+
+-- Slider para ajustar la altura del farm
+AutoFarmSection:NewSlider("Altura de Farm", "Ajusta la altura sobre el NPC", 50, 10, function(value)
+    Config.FarmHeight = value
+    print("Altura de farm ajustada a: " .. value)
+end)
+
+-- Slider para ajustar la velocidad de ataque
+AutoFarmSection:NewSlider("Velocidad de Ataque", "Ajusta la velocidad de ataque (segundos)", 0.5, 0.05, function(value)
+    Config.AttackSpeed = value
+    print("Velocidad de ataque ajustada a: " .. value .. " segundos")
+end)
+
+-- Dropdown para seleccionar el arma
+AutoFarmSection:NewDropdown("Seleccionar Arma", "Selecciona el arma para farm", {"Melee", "Sword", "Gun", "Fruit"}, function(selected)
+    Config.SelectedWeapon = selected
+    print("Arma seleccionada: " .. selected)
 end)
 
 -- Función para manejar la reconexión del personaje
